@@ -5,7 +5,8 @@
 import util
 
 import numpy as np
-
+import re
+from porter_stemmer import PorterStemmer
 
 # noinspection PyMethodMayBeStatic
 class Chatbot:
@@ -158,7 +159,7 @@ class Chatbot:
         pre-processed with preprocess()
         :returns: list of movie titles that are potentially in the text
         """
-        return []
+        return re.findall('"([^"]*)"', preprocessed_input)
 
     def find_movies_by_title(self, title):
         """ Given a movie title, return a list of indices of matching movies.
@@ -178,7 +179,39 @@ class Chatbot:
         :param title: a string containing a movie title
         :returns: a list of indices of matching movies
         """
-        return []
+        if title.find("An") == 0:
+            title = title.replace("An ", "") 
+            i = title.find("(")
+            if i != -1:
+                title = title[0:i-1] + ", An " + title[i:]
+            else:
+                title = title + ", An"
+        elif title.find("The") == 0:
+            title = title.replace("The ", "")
+            i = title.find("(")
+            if i != -1:
+                title = title[0:i-1] + ", The " + title[i:]
+            else:
+                title = title + ", The"
+        elif title.find("A") == 0:
+            title = title.replace("A ", "") 
+            i = title.find("(")
+            if i != -1:
+                title = title[0:i-1] + ", A " + title[i:]
+            else:
+                title = title + ", A"
+        
+        return_list = []
+        movies = open("./data/movies.txt", "r")
+        for line in movies:
+            line_list = line.split("%")
+            if title.find("(") != -1:
+                if line_list[1] == (title):
+                    return_list.append(int(line_list[0]))
+            else:
+                if line_list[1].find(title + " (") != -1:
+                    return_list.append(int(line_list[0]))
+        return return_list
 
     def extract_sentiment(self, preprocessed_input):
         """Extract a sentiment rating from a line of pre-processed text.
@@ -200,7 +233,52 @@ class Chatbot:
         pre-processed with preprocess()
         :returns: a numerical value for the sentiment of the text
         """
-        return 0
+        stemmer = PorterStemmer()
+
+        #stem sentiment.txt
+        sentimentDict = {}
+        for key in self.sentiment:
+            new_key = stemmer.stem(key, 0, len(key) - 1)
+            sentimentDict[new_key] = self.sentiment[key]
+        
+        s = re.sub('"([^"]*)"', '', preprocessed_input).lower()
+        #s = re.sub(r'[^\w\s]','', s).lower()
+        tokens  = s.split(" ")
+
+        posCount = 0
+        negCount = 0
+        switch = False
+        reverse_switch = False
+
+        for token in tokens:
+            token = stemmer.stem(token, 0, len(token) - 1)
+            if token.find(",") != -1:
+                token = re.sub(',','', token)
+                reverse_switch = True
+            if token in sentimentDict:
+                if sentimentDict[token] == "pos":
+                    if switch:
+                        negCount += 1
+                    else:
+                        posCount += 1
+                else:
+                    if switch:
+                        posCount += 1
+                    else:
+                        negCount += 1
+            
+            if reverse_switch:
+                switch = False
+
+            if token == "didn't" or token == "never" or token == "not":
+                switch = True
+        
+        if negCount > posCount:
+            return -1
+        elif posCount > negCount:
+            return 1
+        else:
+            return 0
 
     def extract_sentiment_for_movies(self, preprocessed_input):
         """Creative Feature: Extracts the sentiments from a line of
