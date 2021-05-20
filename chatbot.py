@@ -7,6 +7,7 @@ import util
 import numpy as np
 import re
 from porter_stemmer import PorterStemmer
+from collections import Counter
 
 # noinspection PyMethodMayBeStatic
 class Chatbot:
@@ -30,7 +31,7 @@ class Chatbot:
         ########################################################################
 
         # Binarize the movie ratings before storing the binarized matrix.
-        self.ratings = ratings
+        self.ratings = self.binarize(ratings)
         ########################################################################
         #                             END OF YOUR CODE                         #
         ########################################################################
@@ -386,6 +387,14 @@ class Chatbot:
         # The starter code returns a new matrix shaped like ratings but full of
         # zeros.
         binarized_ratings = np.zeros_like(ratings)
+        #go over each element, and only modify those that are not 0 already
+        rows, cols = np.shape(ratings)
+        for i in range(rows):
+            for j in range(cols):
+                if ratings[i, j] > threshold:
+                    binarized_ratings[i, j] = 1
+                elif ratings[i, j] != 0:
+                    binarized_ratings[i, j] = -1
 
         ########################################################################
         #                        END OF YOUR CODE                              #
@@ -405,7 +414,9 @@ class Chatbot:
         ########################################################################
         # TODO: Compute cosine similarity between the two vectors.             #
         ########################################################################
-        similarity = 0
+        dot_prod = np.dot(u, v)
+        denom = np.linalg.norm(u, ord=2) * np.linalg.norm(v, ord=2)
+        similarity = dot_prod / denom
         ########################################################################
         #                          END OF YOUR CODE                            #
         ########################################################################
@@ -448,7 +459,17 @@ class Chatbot:
         ########################################################################
 
         # Populate this list with k movie indices to recommend to the user.
-        recommendations = []
+        ranks = {}
+        has_rated = [i for i in range(len(user_ratings)) if user_ratings[i] != 0] #list of indices already rated by user
+        for movie in range(len(user_ratings)):
+            if movie in has_rated:
+                continue
+            rating = 0
+            for rated_movie in has_rated:
+                rating += self.similarity(ratings_matrix[movie], ratings_matrix[rated_movie]) * user_ratings[rated_movie]
+            ranks[movie] = rating
+        sortedRatings = Counter(ranks)
+        recommendations = [elem[0] for elem in sortedRatings.most_common(k)]
 
         ########################################################################
         #                        END OF YOUR CODE                              #
