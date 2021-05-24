@@ -2,6 +2,8 @@
 # v.1.0.3
 # Original Python code by Ignacio Cases (@cases)
 ######################################################################
+#Sara, Neha, Dwight, Luka
+
 import util
 
 import numpy as np
@@ -17,7 +19,7 @@ class Chatbot:
     def __init__(self, creative=False):
         # The chatbot's default name is `moviebot`.
         # TODO: Give your chatbot a new name.
-        self.name = 'moviebot'
+        self.name = 'movielad'
 
         self.creative = creative
 
@@ -26,6 +28,10 @@ class Chatbot:
         # movie i by user j
         self.titles, ratings = util.load_ratings('data/ratings.txt')
         self.sentiment = util.load_sentiment_dictionary('data/sentiment.txt')
+        self.simple_titles = [movie[0] for movie in self.titles]
+
+        
+
 
         ########################################################################
         # TODO: Binarize the movie ratings matrix.                             #
@@ -275,6 +281,12 @@ class Chatbot:
 
         return text
 
+    def process_title(self, text):
+        text = text.replace(',', '').replace('.', '').replace(':', '').replace('!', '').replace('?', '')
+        text = text.replace('(', '').replace(')', '').replace('\'', '').strip()
+        return text
+
+
     def extract_titles(self, preprocessed_input):
         """Extract potential movie titles from a line of pre-processed text.
 
@@ -464,8 +476,65 @@ class Chatbot:
         :returns: a list of movie indices with titles closest to the given title
         and within edit distance max_distance
         """
+        temp = []
 
-        pass
+        splittitle = title.split()
+        title_num_chars = len(splittitle)
+
+        reg = '[0-9]{4}'
+
+        if len(re.findall(reg, title)) > 0:
+            includesyear = True
+        else:
+            includesyear = False
+
+        rangelen = len(self.simple_titles)
+
+        for i in range(rangelen):
+            if includesyear:
+                 movie = [self.process_title(movie) for movie in self.simple_titles][i]
+            else:
+                movie = []
+                for mov in self.simple_titles:
+                    movie.append(mov[:-7])
+                movie = movie[i]
+
+            movielen = len(movie.split())
+
+            if movielen == title_num_chars:
+                distance = self.find_edit_distance(title.lower(), movie.lower(), len(title), len(movie), 0, max_distance)
+                if distance <= max_distance:
+                    temp.append((i, distance))
+
+        minn = 1
+        res = []
+        while len(res) == 0 and minn <= max_distance:
+            for tup in temp:
+                if tup[1] == minn:
+                    res.append(tup[0])
+            minn = minn +1
+            
+        return res
+
+    # This algorithm is borrowed from Jurafsky page 25, also discussed in lecture
+    def find_edit_distance(self, lenuno, lendos, uno, dos, cur_sum, max_dist):
+        if cur_sum > max_dist:
+            return cur_sum
+        if uno == 0:
+            return dos
+        if dos == 0:
+            return uno
+
+        if lenuno[uno-1] == lendos[dos-1]:
+            return self.find_edit_distance(lenuno, lendos, uno-1, dos-1, cur_sum, max_dist)
+
+        a = self.find_edit_distance(lenuno, lendos, uno, dos-1, 1+cur_sum, max_dist)
+        b = self.find_edit_distance(lenuno, lendos, uno-1, dos, 1+cur_sum, max_dist)
+        c = self.find_edit_distance(lenuno, lendos, uno-1, dos-1, 2+cur_sum, max_dist)
+        return 1+ min(a,b,c)
+
+
+
 
     def disambiguate(self, clarification, candidates):
         """Creative Feature: Given a list of movies that the user could be
@@ -490,7 +559,7 @@ class Chatbot:
         :returns: a list of indices corresponding to the movies identified by
         the clarification
         """
-        pass
+        pass 
 
     ############################################################################
     # 3. Movie Recommendation helper functions                                 #
