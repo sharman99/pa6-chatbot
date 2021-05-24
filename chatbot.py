@@ -8,6 +8,7 @@ import numpy as np
 import re
 from porter_stemmer import PorterStemmer
 from collections import Counter
+import random
 
 # noinspection PyMethodMayBeStatic
 class Chatbot:
@@ -32,6 +33,87 @@ class Chatbot:
 
         # Binarize the movie ratings before storing the binarized matrix.
         self.ratings = self.binarize(ratings)
+
+        # Create list of user's movie ratings
+        self.userRatings = np.zeros(np.shape(ratings)[0])
+
+        #Create counter of ratings by the user and how many movies we have recommended so far
+        self.userRated = 0
+        self.hasRecommended = 0
+
+        # Save the recommendations calculated between calls of process, so recommend does not need to be called
+        # multiple times unnecessarily
+        self.recommendedMovies = None
+
+        # Create lists of affirmative, negative, clarification, and recommendation responses
+        self.affirmatives = [
+            "I see you liked {}. Tell me how you feel about another movie.",
+            "A fan of {}, I see. Can you share your opinions about another movie?",
+            "{} was a great movie indeed! Can you tell me your feelings about another movie?",
+            "You must've watched {} multiple times then! Tell me your feelings about another movie.",
+            "I'm a fan of {} too! Tell me how you feel about another movie.",
+            "Great taste in movies! I also liked {}. Could you share another movie opinion of yours?",
+            "Yes, {} was a great film! Please share your feelings about another movie."
+        ]
+
+        self.negatives = [
+            "I see you didn't enjoy {} too much. Tell me how you feel about another movie.",
+            "Not a huge fan of {}. Can you share your opinions about another movie?",
+            "I didn't think {} was too great either. Can you tell me your feelings about another movie?",
+            "Yeah, {} could've been better. Tell me your feelings about another movie.",
+            "Watching {} once was enough for me, too! Tell me how you feel about another movie.",
+            "Great taste in movies! I also didn't like {}. Could you share another movie opinion of yours?",
+            "I agree, {} wasn't too great of a film! Please share your feelings about another movie."
+        ]
+
+        self.unclear = [
+            "I can't tell if you enjoyed {} or not. Could you please clarify?",
+            "Could you express your feelings about {} in more detail?",
+            "I'm sorry, but I can't quite tell how you feel about {}. Could you further express your sentiment about the movie?",
+            "Could you please explain your feelings about {} in more detail? I can't tell if you enjoyed it or not."
+        ]
+
+        self.duplicates = [
+            "I found several movies called {}. Could you clarify further?",
+            "There are multiple movies that go by {}. Could you further detail the movie you are talking about?",
+            "Could you please clarify what movie you are talking about? There are multiple movies called {}."
+        ]
+
+        self.noFound = [
+            "{} doesn't exist in my movie database. Could you please share your opinions on another movie?",
+            "Sorry, but I can't find anything about {}. Please share your opinions on another movie.",
+            "I've never heard of {}. Could you please express your feelings about another movie?"
+        ]
+
+        self.noTitle = [
+            "Could you please share your feelings about a movie?",
+            "I don't think you shared your feelings about a movie. Could you please do so?",
+            "I'm here to discuss movies! Could you please share your feelings about a movie?"
+        ]
+
+        self.multipleTitles = [
+            "Could you please talk about one movie at a time?",
+            "Please only share your feelings about one movie at a time!",
+            "I am but a simple bot! Please share your feelings one movie at a time!"
+        ]
+
+        self.recommendFirst = [
+            "Based on your responses, I think you'd like {}. Would you like more recommendations? (yes/no)",
+            "From what I gather, I believe you'd enjoy {}. Would you like more recommendations? (yes/no)"
+        ]
+
+        self.recommendMore = [
+            "I think you would enjoy {}! Would you like more recommendations? (yes/no)",
+            "I believe you would be a big fan of  {}! Would you like to receive more recommendations? (yes/no)",
+            "{} would be a great movie for you to watch! Any more recommendations? (yes/no)",
+            "{} is right up your alley! Would you like more recommendations? (yes/no)"
+        ]
+
+        self.recommendLast =[
+            "My final recommendation for you is {}!",
+            "The last movie I can recommend to you is {}!",
+            "I think you'd like {}! That's my last recommendation!"
+        ]
         ########################################################################
         #                             END OF YOUR CODE                         #
         ########################################################################
@@ -101,7 +183,62 @@ class Chatbot:
         if self.creative:
             response = "I processed {} in creative mode!!".format(line)
         else:
-            response = "I processed {} in starter mode!!".format(line)
+            # Check if we are in the recommendation phase or not
+            if self.userRated < 5:
+                titles = self.extract_titles(line)
+                # Ensure the user input has exactly one title, and that the title is clarifying enough
+                if len(titles) == 0:
+                    return random.choice(self.noTitle)
+                elif len(titles) > 1:
+                    return random.choice(self.multipleTitles)
+                userTitle = titles[0]
+                titleIndices = self.find_movies_by_title(userTitle)
+                if len(titleIndices) == 0:
+                    return random.choice(self.noFound).format(userTitle)
+                elif len(titleIndices) > 1:
+                    return random.choice(self.duplicates).format(userTitle)
+                # Find that movie in the database, and respond based on the acquired sentiment of the user input.
+                movieIndex = titleIndices[0]
+                movieTitle = self.titles[titleIndices[0]][0]
+                sentiment = self.extract_sentiment(line)
+                if sentiment == 0:
+                    return random.choice(self.unclear).format(movieTitle)
+                else:
+                    self.userRated += 1
+                    if sentiment == 1:
+                        self.userRatings[movieIndex] = 1
+                    else:
+                        self.userRatings[movieIndex] = -1
+                    # Respond based on whether or not it is time to recommend movies
+                    if self.userRated < 5:
+                        if sentiment == 1:
+                            return random.choice(self.affirmatives).format(movieTitle)
+                        else:
+                            return random.choice(self.negatives).format(movieTitle)
+                    else:
+                        self.recommendedMovies = self.recommend(self.userRatings, self.ratings)
+                        self.hasRecommended += 1
+                        recMovieIndex = self.recommendedMovies[self.hasRecommended - 1]
+                        recTitle = self.titles[recMovieIndex][0]
+                        return random.choice(self.recommendFirst).format(recTitle)
+            else:
+                # In the recommendation phase, respond based on the user input and how many movies we have recommended
+                if self.hasRecommended >= len(self.recommendedMovies):
+                    return "I am out of movie recommendations! Type :quit when you are done!"
+                elif line.lower() == "yes":
+                    self.hasRecommended += 1
+                    if self.hasRecommended == len(self.recommendedMovies):
+                        recMovieIndex = self.recommendedMovies[self.hasRecommended - 1]
+                        recTitle = self.titles[recMovieIndex][0]
+                        return random.choice(self.recommendLast).format(recTitle)
+                    else:
+                        recMovieIndex = self.recommendedMovies[self.hasRecommended - 1]
+                        recTitle = self.titles[recMovieIndex][0]
+                        return random.choice(self.recommendMore).format(recTitle)
+                elif line.lower() == "no":
+                    return "Ok! I'll just wait here! Type :quit to leave, or type \'yes\' to get another recommendation!"
+                else:
+                    return "If you want a recommendation, type \'yes\' exactly. Otherwise, type :quit if you are done!"
 
         ########################################################################
         #                          END OF YOUR CODE                            #
