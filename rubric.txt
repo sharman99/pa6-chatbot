@@ -9,7 +9,7 @@
 #########################################################################################
 
 FEATURE - Identifying movies without quotation marks and correct capitalization (part 1): NO
-FEATURE - Identifying movies without quotation marks and correct capitalization (part 2): NO
+FEATURE - Identifying movies without quotation marks and correct capitalization (part 2): YES
 FEATURE - Alternate/foreign titles: NO
 FEATURE - Disambiguation (part 1): NO
 FEATURE - Fine-grained sentiment extraction: YES

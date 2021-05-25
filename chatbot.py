@@ -348,10 +348,15 @@ class Chatbot:
             else:
                 title = title + ", A"
         
+        if self.creative:
+            title = title.lower()
+
         return_list = []
         movies = open("./data/movies.txt", "r")
         for line in movies:
             line_list = line.split("%")
+            if self.creative:
+                line_list[1] = line_list[1].lower()
             if title.find("(") != -1:
                 if line_list[1] == (title):
                     return_list.append(int(line_list[0]))
