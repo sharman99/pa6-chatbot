@@ -282,11 +282,7 @@ class Chatbot:
 
         return text
 
-    def process_title(self, text):
-        text = text.replace(',', '').replace('.', '').replace(':', '').replace('!', '').replace('?', '')
-        text = text.replace('(', '').replace(')', '').replace('\'', '').strip()
-        return text
-
+    
 
     def extract_titles(self, preprocessed_input):
         """Extract potential movie titles from a line of pre-processed text.
@@ -423,11 +419,19 @@ class Chatbot:
 
             if token == "didn't" or token == "never" or token == "not":
                 switch = True
+
+        ret = 1
+        fine_grain = ['strongly', 'super', 'loved', 'hated', 'extremely', 'terrible', 'really', 'very', 'totally', 'passionately', 'adored', 'great', 'enjoy', '']
+        for grain in fine_grain:
+            if grain in tokens:
+                ret = 2
+                break
+
         
         if negCount > posCount:
-            return -1
+            return -1 * ret
         elif posCount > negCount:
-            return 1
+            return 1 * ret
         else:
             return 0
 
@@ -479,7 +483,6 @@ class Chatbot:
         and within edit distance max_distance
         """
         temp = []
-
         splittitle = title.split()
         title_num_chars = len(splittitle)
 
@@ -492,9 +495,13 @@ class Chatbot:
 
         rangelen = len(self.simple_titles)
 
+        movie = []
         for i in range(rangelen):
             if includesyear:
-                 movie = [self.process_title(movie) for movie in self.simple_titles][i]
+                for mov in self.simple_titles[i]:
+                    mov = mov.replace(',', '').replace('.', '').replace(':', '').replace('!', '').replace('?', '')
+                    mov = mov.replace('(', '').replace(')', '').replace('\'', '').strip()
+                    movie.append(mov)
             else:
                 movie = []
                 for mov in self.simple_titles:
@@ -519,21 +526,21 @@ class Chatbot:
         return res
 
     # This algorithm is borrowed from Jurafsky page 25, also discussed in lecture
-    def find_edit_distance(self, lenuno, lendos, uno, dos, cur_sum, max_dist):
+    def find_edit_distance(self, lenstr1, lenstr2, str1, str2, cur_sum, max_dist):
         if cur_sum > max_dist:
             return cur_sum
-        if uno == 0:
-            return dos
-        if dos == 0:
-            return uno
+        elif str1 == 0:
+            return str2
+        elif str2 == 0:
+            return str1
 
-        if lenuno[uno-1] == lendos[dos-1]:
-            return self.find_edit_distance(lenuno, lendos, uno-1, dos-1, cur_sum, max_dist)
+        if lenstr2[str2-1] == lenstr1[str1-1]:
+            return self.find_edit_distance(lenstr1, lenstr2, str1-1, str2-1, cur_sum, max_dist)
 
-        a = self.find_edit_distance(lenuno, lendos, uno, dos-1, 1+cur_sum, max_dist)
-        b = self.find_edit_distance(lenuno, lendos, uno-1, dos, 1+cur_sum, max_dist)
-        c = self.find_edit_distance(lenuno, lendos, uno-1, dos-1, 2+cur_sum, max_dist)
-        return 1+ min(a,b,c)
+        a = self.find_edit_distance(lenstr1, lenstr2, str1, str2-1, 1+cur_sum, max_dist)
+        b = self.find_edit_distance(lenstr1, lenstr2, str1-1, str2, 1+cur_sum, max_dist)
+        c = self.find_edit_distance(lenstr1, lenstr2, str1-1, str2-1, 2+cur_sum, max_dist)
+        return min(a,b,c) + 1 
 
 
 
@@ -707,7 +714,8 @@ class Chatbot:
         Consider adding to this description any information about what your
         chatbot can do and how the user can interact with it.
         """
-        return """
+        return 'Movielad will help you find movies that you like according to what you have liked and disliked in the past. It will offer suggestions and make recommendations! Start speaking to Movielad today.'
+        """
         Your task is to implement the chatbot as detailed in the PA6
         instructions.
         Remember: in the starter mode, movie names will come in quotation marks

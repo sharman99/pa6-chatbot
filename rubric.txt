@@ -12,8 +12,8 @@ FEATURE - Identifying movies without quotation marks and correct capitalization 
 FEATURE - Identifying movies without quotation marks and correct capitalization (part 2): NO
 FEATURE - Alternate/foreign titles: NO
 FEATURE - Disambiguation (part 1): NO
-FEATURE - Fine-grained sentiment extraction: NO
-FEATURE - Spell-correcting fallback for find_movies_by_title: NO
+FEATURE - Fine-grained sentiment extraction: YES
+FEATURE - Spell-correcting fallback for find_movies_by_title: YES
 FEATURE - Extracting sentiment with multiple-movie input: NO
 FEATURE - Disambiguation (part 2): NO
 FEATURE - Disambiguation (part 3): NO
