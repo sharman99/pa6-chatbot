@@ -416,7 +416,36 @@ class Chatbot:
         pre-processed with preprocess()
         :returns: list of movie titles that are potentially in the text
         """
-        return re.findall(r'"([^"]*)"', preprocessed_input)
+        return_list = []
+        if self.creative:
+            return_list = re.findall(r'"([^"]*)"', preprocessed_input)
+            if len(return_list) == 0:
+                preprocessed_input = preprocessed_input.lower()
+                tokens = preprocessed_input.split()
+
+                potential = []
+                for i in range(len(tokens)):
+                    base = tokens[i]
+                    for j in range(i + 1, len(tokens) + 1):
+                        potential.append(base)
+                        potential.append(base[:len(base)-1])
+                        if j < len(tokens):
+                            base = base + " " + tokens[j]
+                            
+                movies = open("./data/movies.txt", "r")
+                for line in movies:
+                    line_list = line.split("%")
+
+                    for token in potential:
+                        line_list[1] = line_list[1].lower()
+                        if line_list[1] == token:
+                            return_list.append(int(line_list[0]))
+                        elif line_list[1].find(title + " (") != -1:
+                            return_list.append(int(line_list[0]))
+
+                return return_list
+        else:
+            return re.findall(r'"([^"]*)"', preprocessed_input)
 
     def find_movies_by_title(self, title):
         """ Given a movie title, return a list of indices of matching movies.
@@ -470,9 +499,14 @@ class Chatbot:
             if title.find("(") != -1:
                 if line_list[1] == (title):
                     return_list.append(int(line_list[0]))
-            else:
-                if line_list[1].find(title + " (") != -1:
+            elif line_list[1].find(title + " (") != -1:
                     return_list.append(int(line_list[0]))
+            else:   #check for foreign titles
+                if self.creative:
+                    potential_foreign = re.findall(r'\((.*?)\)', line_list[1])
+                    for paren in potential_foreign:
+                        if paren.find(title) != -1:
+                            return_list.append(int(line_list[0]))
         return return_list
 
     def extract_sentiment(self, preprocessed_input):

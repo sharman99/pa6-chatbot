@@ -8,9 +8,9 @@
 # You will only receive credit for the features you mark as YES below!                  #
 #########################################################################################
 
-FEATURE - Identifying movies without quotation marks and correct capitalization (part 1): NO
+FEATURE - Identifying movies without quotation marks and correct capitalization (part 1): YES
 FEATURE - Identifying movies without quotation marks and correct capitalization (part 2): YES
-FEATURE - Alternate/foreign titles: NO
+FEATURE - Alternate/foreign titles: YES
 FEATURE - Disambiguation (part 1): NO
 FEATURE - Fine-grained sentiment extraction: YES
 FEATURE - Spell-correcting fallback for find_movies_by_title: YES
