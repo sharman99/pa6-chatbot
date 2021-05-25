@@ -94,7 +94,8 @@ class Chatbot:
         self.noTitle = [
             "Could you please share your feelings about a movie?",
             "I don't think you shared your feelings about a movie. Could you please do so?",
-            "I'm here to discuss movies! Could you please share your feelings about a movie?"
+            "I'm here to discuss movies! Could you please share your feelings about a movie?",
+            "Ok, got it"
         ]
 
         self.multipleTitles = [
@@ -452,6 +453,7 @@ class Chatbot:
         title, and the second is the sentiment in the text toward that movie
         """
         pass
+        
 
     def find_movies_closest_to_title(self, title, max_distance=3):
         """Creative Feature: Given a potentially misspelled movie title,
