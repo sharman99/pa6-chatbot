@@ -416,7 +416,7 @@ class Chatbot:
         pre-processed with preprocess()
         :returns: list of movie titles that are potentially in the text
         """
-        return re.findall('"([^"]*)"', preprocessed_input)
+        return re.findall(r'"([^"]*)"', preprocessed_input)
 
     def find_movies_by_title(self, title):
         """ Given a movie title, return a list of indices of matching movies.
@@ -458,10 +458,15 @@ class Chatbot:
             else:
                 title = title + ", A"
         
+        if self.creative:
+            title = title.lower()
+
         return_list = []
         movies = open("./data/movies.txt", "r")
         for line in movies:
             line_list = line.split("%")
+            if self.creative:
+                line_list[1] = line_list[1].lower()
             if title.find("(") != -1:
                 if line_list[1] == (title):
                     return_list.append(int(line_list[0]))
@@ -678,7 +683,86 @@ class Chatbot:
         :returns: a list of indices corresponding to the movies identified by
         the clarification
         """
-        pass 
+        def disambiguate(self, clarification, candidates):
+        
+            """Creative Feature: Given a list of movies that the user could be
+        talking about (represented as indices), and a string given by the user
+        as clarification (eg. in response to your bot saying "Which movie did
+        you mean: Titanic (1953) or Titanic (1997)?"), use the clarification to
+        narrow down the list and return a smaller list of candidates (hopefully
+        just 1!)
+
+        - If the clarification uniquely identifies one of the movies, this
+        should return a 1-element list with the index of that movie.
+        - If it's unclear which movie the user means by the clarification, it
+        should return a list with the indices it could be referring to (to
+        continue the disambiguation dialogue).
+
+        Example:
+          chatbot.disambiguate("1997", [1359, 2716]) should return [1359]
+
+        :param clarification: user input intended to disambiguate between the
+        given movies
+        :param candidates: a list of movie indices
+        :returns: a list of indices corresponding to the movies identified by
+        the clarification
+        """
+        res = []
+
+
+
+        if clarification[:3].lower() == 'the':
+            clarification = clarification[3:]
+
+        if clarification[-3:].lower() == 'one':
+            clarification = clarification[:-3]
+
+        clarification = clarification.lower()
+
+        allwords = word_tokenize(clarification)
+        
+        for word in allwords: 
+            for i in candidates: 
+                mov = word_tokenize(self.titles_only[i].lower())
+                if word in mov: 
+                    res.append(i)
+                elif word not in mov and i in res: 
+                    res.remove(i)
+                            
+        if len(res) == 0:
+            if clarification.isnumeric():
+                i = int(clarification)
+                i = i -1
+                if i < len(candidates):
+                    res.append(candidates[i])
+                    
+
+        wordtonum = [('end', -1), ('last', -1), ('first', 0), ('second', 1), ('third', 2),  ('middle', len(candidates)//2)]
+
+        if len(res) == 0:
+            for num in wordtonum:
+                if num[0] in clarification.lower() and num[1] < len(candidates):
+                    res.append(candidates[num[1]])
+                    break
+
+        timetonum = [('recent', -1), ('old', 0), ('new', -1), ('latest', -1)]
+        if len(res) == 0:
+            sort = [(i, self.get_year(self.simple_titles[i])) for i in candidates]
+            sort = sorted(sort, key = lambda x: x[1])
+            sort = [x[0] for x in sort]
+
+            for num in timetonum:
+                if num[0] in clarification.lower():
+                    if num[1] < len(candidates):
+                        res.append(sort[num[1]])
+                        break
+
+        return res
+
+    def get_year(self, movie):
+        s = movie.find('(')
+        e = movie.find(')')
+        return int(movie[s+1:e]) 
 
     ############################################################################
     # 3. Movie Recommendation helper functions                                 #
