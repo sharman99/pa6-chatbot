@@ -570,7 +570,7 @@ class Chatbot:
                 switch = True
 
         ret = 1
-        fine_grain = ['strongly', 'super', 'loved', 'hated', 'extremely', 'terrible', 'really', 'very', 'totally', 'passionately', 'adored', 'great', 'enjoy']
+        fine_grain = ['strongly', 'super', 'loved', 'hated', 'extremely', 'terrible', 'really', 'very', 'totally', 'passionately', 'adored', 'great', 'enjoy', 'loathe', 'abhor', 'passion', 'disdain', 'despise', 'enamored', 'superb', 'extremely' ]
         for grain in fine_grain:
             if grain in tokens:
                 ret = 2
@@ -694,29 +694,7 @@ class Chatbot:
 
 
 
-    def disambiguate(self, clarification, candidates):
-        """Creative Feature: Given a list of movies that the user could be
-        talking about (represented as indices), and a string given by the user
-        as clarification (eg. in response to your bot saying "Which movie did
-        you mean: Titanic (1953) or Titanic (1997)?"), use the clarification to
-        narrow down the list and return a smaller list of candidates (hopefully
-        just 1!)
-
-        - If the clarification uniquely identifies one of the movies, this
-        should return a 1-element list with the index of that movie.
-        - If it's unclear which movie the user means by the clarification, it
-        should return a list with the indices it could be referring to (to
-        continue the disambiguation dialogue).
-
-        Example:
-          chatbot.disambiguate("1997", [1359, 2716]) should return [1359]
-
-        :param clarification: user input intended to disambiguate between the
-        given movies
-        :param candidates: a list of movie indices
-        :returns: a list of indices corresponding to the movies identified by
-        the clarification
-        """
+    
         def disambiguate(self, clarification, candidates):
         
             """Creative Feature: Given a list of movies that the user could be
