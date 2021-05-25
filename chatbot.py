@@ -51,6 +51,12 @@ class Chatbot:
         # multiple times unnecessarily
         self.recommendedMovies = None
 
+        # Keep track of if the most recent prompt had a misspelling, and save the name of that closest title
+        self.lastMistake = False
+        self.correctedTitle = None
+        self.correctedIndex = None
+        self.savedSentiment = None
+
         # Create lists of affirmative, negative, clarification, and recommendation responses
         self.affirmatives = [
             "I see you liked {}. Tell me how you feel about another movie.",
@@ -121,6 +127,16 @@ class Chatbot:
             "The last movie I can recommend to you is {}!",
             "I think you'd like {}! That's my last recommendation!"
         ]
+
+        self.multipleMisspelled = [
+            "There seem to be several movies close to your entry of {}. Could you please double-check your spelling, and express your feelings again?"
+        ]
+
+        self.correctingUser = [
+            "I'm sorry, but did you mean {}? (yes/no)",
+            "Are you talking about {}? (yes/no)",
+            "You mean {}, correct? (yes/no)"
+        ]
         ########################################################################
         #                             END OF YOUR CODE                         #
         ########################################################################
@@ -188,10 +204,33 @@ class Chatbot:
         # code in a modular fashion to make it easier to improve and debug.    #
         ########################################################################
         if self.creative:
-            response = "I processed {} in creative mode!!".format(line)
-        else:
+            if self.lastMistake:
+                if line.lower() == 'yes':
+                    self.lastMistake = False
+                    self.userRated += 1
+                    if self.savedSentiment >= 1:
+                        self.userRatings[self.correctedIndex] = 1
+                    else:
+                        self.userRatings[self.correctedIndex] = -1
+                    # Respond based on whether or not it is time to recommend movies
+                    if self.userRated < 5:
+                        if self.savedSentiment >= 1:
+                            return random.choice(self.affirmatives).format(self.correctedTitle)
+                        else:
+                            return random.choice(self.negatives).format(self.correctedTitle)
+                    else:
+                        self.recommendedMovies = self.recommend(self.userRatings, self.ratings)
+                        self.hasRecommended += 1
+                        recMovieIndex = self.recommendedMovies[self.hasRecommended - 1]
+                        recTitle = self.titles[recMovieIndex][0]
+                        return random.choice(self.recommendFirst).format(recTitle)
+                elif line.lower() == 'no':
+                    self.lastMistake = False
+                    return "Ok! Please express your feelings about a new movie!"
+                else:
+                    return "Please respond with specifically \'yes\' or \'no\'."
             # Check if we are in the recommendation phase or not
-            if self.userRated < 5:
+            elif self.userRated < 5:
                 titles = self.extract_titles(line)
                 # Ensure the user input has exactly one title, and that the title is clarifying enough
                 if len(titles) == 0:
@@ -201,7 +240,22 @@ class Chatbot:
                 userTitle = titles[0]
                 titleIndices = self.find_movies_by_title(userTitle)
                 if len(titleIndices) == 0:
-                    return random.choice(self.noFound).format(userTitle)
+                    closeTitles = self.find_movies_closest_to_title(userTitle)
+                    if len(closeTitles) > 1:
+                        return random.choice(self.multipleMisspelled).format(userTitle)
+                    elif len(closeTitles) == 0:
+                        return random.choice(self.noFound).format(userTitle)
+                    else:
+                        closeIndex = closeTitles[0]
+                        closeCorrectTitle = self.titles[closeIndex][0]
+                        sentiment = self.extract_sentiment(line)
+                        if sentiment == 0:
+                            return random.choice(self.unclear).format(closeCorrectTitle)
+                        self.lastMistake = True
+                        self.savedSentiment = sentiment
+                        self.correctedTitle = closeCorrectTitle
+                        self.correctedIndex = closeIndex
+                        return random.choice(self.correctingUser).format(closeCorrectTitle)
                 elif len(titleIndices) > 1:
                     return random.choice(self.duplicates).format(userTitle)
                 # Find that movie in the database, and respond based on the acquired sentiment of the user input.
@@ -246,11 +300,67 @@ class Chatbot:
                     return "Ok! I'll just wait here! Type :quit to leave, or type \'yes\' to get another recommendation!"
                 else:
                     return "If you want a recommendation, type \'yes\' exactly. Otherwise, type :quit if you are done!"
+        else:
+            # Check if we are in the recommendation phase or not
+            if self.userRated < 5:
+                titles = self.extract_titles(line)
+                # Ensure the user input has exactly one title, and that the title is clarifying enough
+                if len(titles) == 0:
+                    return random.choice(self.noTitle)
+                elif len(titles) > 1:
+                    return random.choice(self.multipleTitles)
+                userTitle = titles[0]
+                titleIndices = self.find_movies_by_title(userTitle)
+                if len(titleIndices) == 0:
+                    return random.choice(self.noFound).format(userTitle)
+                elif len(titleIndices) > 1:
+                    return random.choice(self.duplicates).format(userTitle)
+                # Find that movie in the database, and respond based on the acquired sentiment of the user input.
+                movieIndex = titleIndices[0]
+                movieTitle = self.titles[titleIndices[0]][0]
+                sentiment = self.extract_sentiment(line)
+                if sentiment == 0:
+                    return random.choice(self.unclear).format(movieTitle)
+                else:
+                    self.userRated += 1
+                    if sentiment >= 1:
+                        self.userRatings[movieIndex] = 1
+                    else:
+                        self.userRatings[movieIndex] = -1
+                    # Respond based on whether or not it is time to recommend movies
+                    if self.userRated < 5:
+                        if sentiment >= 1:
+                            return random.choice(self.affirmatives).format(movieTitle)
+                        else:
+                            return random.choice(self.negatives).format(movieTitle)
+                    else:
+                        self.recommendedMovies = self.recommend(self.userRatings, self.ratings)
+                        self.hasRecommended += 1
+                        recMovieIndex = self.recommendedMovies[self.hasRecommended - 1]
+                        recTitle = self.titles[recMovieIndex][0]
+                        return random.choice(self.recommendFirst).format(recTitle)
+            else:
+                # In the recommendation phase, respond based on the user input and how many movies we have recommended
+                if self.hasRecommended >= len(self.recommendedMovies):
+                    return "I am out of movie recommendations! Type :quit when you are done!"
+                elif line.lower() == "yes":
+                    self.hasRecommended += 1
+                    if self.hasRecommended == len(self.recommendedMovies):
+                        recMovieIndex = self.recommendedMovies[self.hasRecommended - 1]
+                        recTitle = self.titles[recMovieIndex][0]
+                        return random.choice(self.recommendLast).format(recTitle)
+                    else:
+                        recMovieIndex = self.recommendedMovies[self.hasRecommended - 1]
+                        recTitle = self.titles[recMovieIndex][0]
+                        return random.choice(self.recommendMore).format(recTitle)
+                elif line.lower() == "no":
+                    return "Ok! I'll just wait here! Type :quit to leave, or type \'yes\' to get another recommendation!"
+                else:
+                    return "If you want a recommendation, type \'yes\' exactly. Otherwise, type :quit if you are done!"
 
         ########################################################################
         #                          END OF YOUR CODE                            #
         ########################################################################
-        return response
 
     @staticmethod
     def preprocess(text):
@@ -421,7 +531,7 @@ class Chatbot:
                 switch = True
 
         ret = 1
-        fine_grain = ['strongly', 'super', 'loved', 'hated', 'extremely', 'terrible', 'really', 'very', 'totally', 'passionately', 'adored', 'great', 'enjoy', '']
+        fine_grain = ['strongly', 'super', 'loved', 'hated', 'extremely', 'terrible', 'really', 'very', 'totally', 'passionately', 'adored', 'great', 'enjoy']
         for grain in fine_grain:
             if grain in tokens:
                 ret = 2
